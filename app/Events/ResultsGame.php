@@ -90,6 +90,7 @@ class ResultsGame implements ShouldBroadcastNow
                 User::upsert($dataUpsert, ['id'], ['price']);
             }
 
+            $game->results = json_encode($results);
             $game->is_finish = 1;
             $game->save();
 

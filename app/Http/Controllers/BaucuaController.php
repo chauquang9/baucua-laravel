@@ -104,6 +104,7 @@ class BaucuaController extends Controller
                 'username' => $bet->user->name,
                 'priceBet' => $bet->money_bet,
                 'colorHex' => $bet->user->colorHex,
+                'avatar'   => $bet->user->avatar,
             ];
         }
 
@@ -152,7 +153,7 @@ class BaucuaController extends Controller
             $user      = $request->user();
             $validator = Validator::make($request->all(), [
                 'item_id' => 'required',
-                'money'   => 'required|numeric|max:' . $user->price,
+                'money'   => 'required|numeric',
                 'x'       => 'required',
                 'y'       => 'required',
             ]);
@@ -177,7 +178,12 @@ class BaucuaController extends Controller
             $userId = $user->id;
             $itemId = $request->get('item_id');
             $oldBet = Bet::where('game_id', $gameId)->where('baucua_id', $itemId)->where('user_id', $userId)->first();
-            $bet    = Bet::updateOrCreate([
+            if (!empty($oldBet) && $request->get('money') > ($oldBet->money_bet + $user->price)) {
+                $totalMoney = $oldBet->money_bet + $user->price;
+
+                return response()->json(['message' => 'The money must not be greater than ' . $totalMoney . '.'], 400);
+            }
+            $bet = Bet::updateOrCreate([
                 'game_id'   => $gameId,
                 'baucua_id' => $itemId,
                 'user_id'   => $userId,

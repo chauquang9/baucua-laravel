@@ -45,9 +45,22 @@ class User extends Authenticatable
     ];
 
     /**
+     * @return string
+     */
+    public function getAvatarAttribute()
+    {
+        if (!empty($this->attributes['avatar'])) {
+            return 'images/' . $this->attributes['avatar'];
+        }
+
+        return '';
+    }
+
+    /**
      * @return \Illuminate\Database\Eloquent\Relations\HasMany
      */
-    public function bet() {
+    public function bet()
+    {
         return $this->hasMany(Bet::class, 'user_id');
     }
 }

@@ -59,6 +59,7 @@ class BetLists implements ShouldBroadcastNow
                 'username' => $bet->user->name,
                 'priceBet' => $bet->money_bet,
                 'colorHex' => $bet->user->colorHex,
+                'avatar'   => $bet->user->avatar,
             ];
         }
 

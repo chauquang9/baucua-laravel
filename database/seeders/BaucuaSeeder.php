@@ -168,6 +168,18 @@ class BaucuaSeeder extends Seeder
                 'password' => Hash::make('Testing1'),
                 'colorHex' => sprintf('#%06X', mt_rand(0, 0xFFFFFF)),
             ],
+            [
+                'email'    => 'huy.nguyen@monimedia.com',
+                'name'     => 'Huy Nguyen',
+                'password' => Hash::make('Testing1'),
+                'colorHex' => sprintf('#%06X', mt_rand(0, 0xFFFFFF)),
+            ],
+            [
+                'email'    => 'trinh.le@monimedia.com',
+                'name'     => 'Trinh Le',
+                'password' => Hash::make('Testing1'),
+                'colorHex' => sprintf('#%06X', mt_rand(0, 0xFFFFFF)),
+            ],
         ];
 
         User::upsert($dataUsers, ['id'], [

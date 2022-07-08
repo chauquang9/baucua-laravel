@@ -18,6 +18,8 @@ Route::middleware('auth:api')->group(function () {
         return $request->user();
     });
 
+    Route::post('/user/update', [\App\Http\Controllers\UserController::class, 'update']);
+
     Route::controller(\App\Http\Controllers\BaucuaController::class)->group(function () {
         Route::get('/baucua', 'getLists');
         Route::get('/baucua/start', 'startButton');
