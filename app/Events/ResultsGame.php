@@ -8,6 +8,7 @@ use App\Models\Game;
 use App\Models\Order;
 use App\Models\User;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**

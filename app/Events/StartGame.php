@@ -6,6 +6,7 @@ use App\Models\Baucua;
 use App\Models\Game;
 use App\Models\Order;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
+use Illuminate\Support\Facades\DB;
 
 /**
  *

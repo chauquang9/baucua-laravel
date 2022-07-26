@@ -19,6 +19,7 @@ Route::middleware('auth:api')->group(function () {
     });
 
     Route::post('/user/update', [\App\Http\Controllers\UserController::class, 'update']);
+    Route::post('/user/change-password', [\App\Http\Controllers\UserController::class, 'changePassword']);
 
     Route::controller(\App\Http\Controllers\BaucuaController::class)->group(function () {
         Route::get('/baucua', 'getLists');
@@ -30,5 +31,9 @@ Route::middleware('auth:api')->group(function () {
         Route::delete('/baucua/deletebet', 'deletebet');
         Route::get('/baucua/getbet', 'getbet');
         Route::get('/baucua/topplayer', 'topPlayer');
+
+        Route::get('/statistics', 'statistics');
+        Route::get('/filters', 'filters');
     });
+
 });

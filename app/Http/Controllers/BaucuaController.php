@@ -7,6 +7,7 @@ use App\Models\Baucua;
 use App\Models\Bet;
 use App\Models\Game;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Symfony\Component\HttpFoundation\Request;
 
@@ -153,7 +154,7 @@ class BaucuaController extends Controller
             $user      = $request->user();
             $validator = Validator::make($request->all(), [
                 'item_id' => 'required',
-                'money'   => 'required|numeric',
+                'money'   => 'required|numeric|max:' . $user->price,
                 'x'       => 'required',
                 'y'       => 'required',
             ]);
@@ -166,52 +167,62 @@ class BaucuaController extends Controller
             if ($currentGame) {
                 return response()->json(['message' => 'Game is playing, please wait.'], 400);
             }
+            DB::beginTransaction();
 
-            $game   = Game::updateOrCreate([
-                'is_playing' => 0,
-                'is_finish'  => 0,
-            ], [
-                'is_playing' => 0,
-                'is_finish'  => 0,
-            ]);
-            $gameId = $game->id;
-            $userId = $user->id;
-            $itemId = $request->get('item_id');
-            $oldBet = Bet::where('game_id', $gameId)->where('baucua_id', $itemId)->where('user_id', $userId)->first();
-            if (!empty($oldBet) && $request->get('money') > ($oldBet->money_bet + $user->price)) {
-                $totalMoney = $oldBet->money_bet + $user->price;
+            try {
+                $game   = Game::updateOrCreate([
+                    'is_playing' => 0,
+                    'is_finish'  => 0,
+                ], [
+                    'is_playing' => 0,
+                    'is_finish'  => 0,
+                ]);
+                $gameId = $game->id;
+                $userId = $user->id;
+                $itemId = $request->get('item_id');
+                $oldBet = Bet::where('game_id', $gameId)->where('baucua_id', $itemId)->where('user_id', $userId)->first();
+                if (!empty($oldBet) && $request->get('money') > ($oldBet->money_bet + $user->price)) {
+                    $totalMoney = $oldBet->money_bet + $user->price;
 
-                return response()->json(['message' => 'The money must not be greater than ' . $totalMoney . '.'], 400);
+                    return response()->json(['message' => 'The money must not be greater than ' . $totalMoney . '.'], 400);
+                }
+                $bet = Bet::updateOrCreate([
+                    'game_id'   => $gameId,
+                    'baucua_id' => $itemId,
+                    'user_id'   => $userId,
+                ], [
+                    'money_bet' => $request->get('money'),
+                    'x'         => $request->get('x'),
+                    'y'         => $request->get('y'),
+                ]);
+
+                if (!$bet->wasRecentlyCreated && $bet->wasChanged()) {
+                    // updateOrCreate performed an update
+                    $money = ($user->price + $oldBet->money_bet) - $request->get('money');
+                } else if ($bet->wasRecentlyCreated) {
+                    // updateOrCreate performed create
+                    $money = $user->price - $request->get('money');
+                } else {
+                    $money = $bet->money_bet;
+                }
+
+                $user->price = $money;
+                $user->save();
+
+                event(new BetLists($gameId));
+                DB::commit();
+
+                return response()->json([
+                    'message' => 'successfully',
+                    'money'   => $money,
+                ]);
+            } catch (\Exception $e) {
+                DB::rollback();
+                return response()->json([
+                    'message' => 'transaction error',
+                    'money'   => $money,
+                ]);
             }
-            $bet = Bet::updateOrCreate([
-                'game_id'   => $gameId,
-                'baucua_id' => $itemId,
-                'user_id'   => $userId,
-            ], [
-                'money_bet' => $request->get('money'),
-                'x'         => $request->get('x'),
-                'y'         => $request->get('y'),
-            ]);
-
-            if (!$bet->wasRecentlyCreated && $bet->wasChanged()) {
-                // updateOrCreate performed an update
-                $money = ($user->price + $oldBet->money_bet) - $request->get('money');
-            } else if ($bet->wasRecentlyCreated) {
-                // updateOrCreate performed create
-                $money = $user->price - $request->get('money');
-            } else {
-                $money = $bet->money_bet;
-            }
-
-            $user->price = $money;
-            $user->save();
-
-            event(new BetLists($gameId));
-
-            return response()->json([
-                'message' => 'successfully',
-                'money'   => $money,
-            ]);
         } catch (\Exception $exception) {
             return response()->json(['message' => $exception->getMessage()]);
         }
@@ -225,5 +236,63 @@ class BaucuaController extends Controller
         $topPlayerGame = User::orderBy('price', 'DESC')->limit(10)->select('id', 'name', 'price')->get()->toArray();
 
         return response()->json($topPlayerGame);
+    }
+
+    /**
+     * @return void
+     */
+    public function statistics(Request $request)
+    {
+        try {
+            $data      = [];
+            $user      = $request->user();
+            $validator = Validator::make($request->all(), [
+                'user_id' => 'required|numeric',
+            ]);
+            if ($validator->fails()) {
+                return response()->json(['message' => $validator->errors()->first()], 400);
+            }
+
+            $totalGame = Game::where('is_playing', 1)->where('is_finish', 1)->count();
+            $items     = Baucua::addSelect([
+                'id',
+                'name',
+                DB::raw("(select count(*) from game where is_finish = 1 and is_playing = 1 and json_contains(game.results ,json_object('id', baucua.id))) as total"),
+            ])
+                               ->get()->pluck('total', 'name');
+
+            $bets = Bet::where('user_id', $request->get('user_id') ?? $user->id)
+                       ->with('user')
+                       ->with('baucua')
+                       ->limit(10)
+                       ->orderBy('id', 'DESC');
+
+            if ($request->get('item_id')) {
+                $bets = $bets->where('baucua_id', $request->get('item_id'))
+                             ->get()
+                             ->toArray();
+            } else {
+                $bets = $bets->get()
+                             ->toArray();
+            }
+
+            $data['totalGame'] = $totalGame;
+            $data['items']     = $items;
+            $data['bets']      = $bets;
+
+            return response()->json($data);
+        } catch (\Exception $exception) {
+            return response()->json(['message' => $exception->getMessage()]);
+        }
+    }
+
+    public function filters(Request $request)
+    {
+        $filters = [
+            'items' => Baucua::all(),
+            'users' => User::all(),
+        ];
+
+        return response()->json($filters);
     }
 }
