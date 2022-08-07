@@ -219,8 +219,8 @@ class BaucuaController extends Controller
             } catch (\Exception $e) {
                 DB::rollback();
                 return response()->json([
-                    'message' => 'transaction error',
-                    'money'   => $money,
+                    'message' => $e->getMessage(),
+                    'money'   => $user->price,
                 ]);
             }
         } catch (\Exception $exception) {
