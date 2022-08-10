@@ -18,8 +18,14 @@ Route::middleware('auth:api')->group(function () {
         return $request->user();
     });
 
-    Route::post('/user/update', [\App\Http\Controllers\UserController::class, 'update']);
-    Route::post('/user/change-password', [\App\Http\Controllers\UserController::class, 'changePassword']);
+    Route::post('/user/update', [
+        \App\Http\Controllers\UserController::class,
+        'update',
+    ]);
+    Route::post('/user/change-password', [
+        \App\Http\Controllers\UserController::class,
+        'changePassword',
+    ]);
 
     Route::controller(\App\Http\Controllers\BaucuaController::class)->group(function () {
         Route::get('/baucua', 'getLists');
@@ -36,4 +42,9 @@ Route::middleware('auth:api')->group(function () {
         Route::get('/filters', 'filters');
     });
 
+    Route::controller(\App\Http\Controllers\RequestController::class)->group(function () {
+        Route::get('/get-requests', 'getRequests');
+        Route::post('/add-request', 'addRequest');
+        Route::post('/change-status', 'changeStatusRequest');
+    });
 });
